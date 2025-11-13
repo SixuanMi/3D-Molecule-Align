@@ -1,0 +1,8 @@
+numpy
+matplotlib
+rmsd
+ase
+tqdm
+requests
+h5py
+git+https://gitlab.com/matschreiner/Transition1x.git
