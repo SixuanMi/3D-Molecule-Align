@@ -5,4 +5,5 @@ ase
 tqdm
 requests
 h5py
+qmllib
 git+https://gitlab.com/matschreiner/Transition1x.git
