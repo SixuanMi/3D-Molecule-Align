@@ -75,8 +75,21 @@ python test_hungarian_algorithm.py
 ## 算法说明
 
 ### 基于惯性矩的匈牙利算法（inertia_hungarian）
+### 距离重排序算法（distance）
+### QML重排序算法（qml）
+都直接调用 [rmsd GitHub仓库](https://github.com/charnley/rmsd)
 
-该算法为 baseline，直接调用 [rmsd GitHub仓库](https://github.com/charnley/rmsd)
+
+## 测试结果
+
+以下是在三个数据集上各算法的严格正确率测试结果：
+
+| 算法名称 | RDB19 | RGD1 | T1x | Average |
+|---------|------------|-----------|----------|-----------|
+| 基于惯性矩的匈牙利算法 | 31.04% | 23.36% | 27.02% | 27.14% |
+| QML重排序算法 | 14.09% | 16.63% | 23.74% | 18.15% |
+| 距离重排序算法 | 0.02% | 0.40% | 2.10% | 0.84% |
+
 
 ## 许可证
 
