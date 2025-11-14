@@ -81,7 +81,7 @@ AtomMapping对象
 │   ├── atoms (np.ndarray, dtype=int) - 原子序数数组，形状为 (N,)，N为原子数
 │   └── coordinates (np.ndarray, dtype=float64) - 原子坐标数组，形状为 (N, 3)
 ├── mapping_indices (np.ndarray, dtype=int) - 原子映射索引数组，形状为 (N,)
-└── source (str) - 数据来源标识（"RDB19", "RGD1", "T1x"）
+└── source (str) - 数据来源标识（"RDB19_*", "RGD1_*", "T1x_*"）
 ```
 其中 mapping_indices[i] 表示候选分子中第i个原子映射到参考分子中的位置
 
