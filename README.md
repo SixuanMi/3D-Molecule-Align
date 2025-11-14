@@ -64,7 +64,7 @@ python test_reorder_qml_algorithm.py
 ## 数据说明
 原始数据来源于开源数据集
 - [T1x数据集](https://figshare.com/articles/dataset/Transition1x/19614657)，元素类型涵盖 C, H, O, N，7 个重原子以下，包含 10073 个反应
-- [RGD1数据集](https://figshare.com/articles/dataset/model_reaction_database/21066901)，元素类型涵盖 C, H, O, N，10 个重原子以下,包含 176992 个反应
+- [RGD1数据集](https://figshare.com/articles/dataset/model_reaction_database/21066901)，元素类型涵盖 C, H, O, N，10 个重原子以下，包含 176992 个反应
 - [RDB19-Rad数据集](https://zenodo.org/records/11493786)，元素类型涵盖 C, H, O, N, S，19 个重原子以下，包含 5600 个反应
 
 预处理后的 pickle 文件存储的是 `AtomMapping` 对象的列表，每个对象包含以下层级结构：
@@ -96,13 +96,14 @@ AtomMapping对象
 
 ## 测试结果
 
-以下是在三个数据集上各算法的严格正确率测试结果：
+以下是在三个数据集上各算法的测试结果，包括严格正确率和平均汉明距离：
 
-| 算法名称 | RDB19 | RGD1 | T1x |
-|---------|------------|-----------|----------|
-| inertia_hungarian | 31.04% | 23.36% | 27.02% |
-| qml | 14.09% | 16.63% | 23.74% |
-| distance | 0.02% | 0.40% | 2.10% |
+| 测试数据集       | RDB19       |                 | RGD1        |                 | T1x         |                 |
+|----------------|-------------|-----------------|-------------|-----------------|-------------|-----------------|
+| 算法        | Acc.(↑)  | Avg. HD(↓)    | Acc.(↑)  | Avg. HD(↓)    | Acc.(↑)  | Avg. HD(↓)    |
+| inertia_hungarian | 31.04%      | 7.13            | 23.36%      | 6.91            | 27.02%      | 5.22            |
+| qml            | 14.09%      | 6.26            | 16.63%      | 4.77            | 23.74%      | 3.85            |
+| distance       | 0.02%       | 19.09           | 0.40%       | 11.21           | 2.10%       | 8.07            |
 
 
 ## 许可证
