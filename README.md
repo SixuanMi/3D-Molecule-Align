@@ -54,7 +54,9 @@ python ../../scripts/preprocess_data.py
 
 ```bash
 cd scripts
-python test_hungarian_algorithm.py
+python test_reorder_hungarian_algorithm.py
+python test_reorder_distance_algorithm.py
+python test_reorder_qml_algorithm.py
 ```
 测试结果将保存在 `results/` 文件夹下
 
@@ -65,12 +67,23 @@ python test_hungarian_algorithm.py
 - [RGD1数据集](https://figshare.com/articles/dataset/model_reaction_database/21066901)，元素类型涵盖 C, H, O, N，10 个重原子以下,包含 176992 个反应
 - [RDB19-Rad数据集](https://zenodo.org/records/11493786)，元素类型涵盖 C, H, O, N, S，19 个重原子以下，包含 5600 个反应
 
-预处理后的 pickle 数据包含以下信息：
-- 参考分子结构（Reference Structure）
-- 候选分子结构（Candidate Structure）
-- 正确的原子映射关系（Atom Mapping）
-- 数据来源标识（Source）
+预处理后的 pickle 文件存储的是 `AtomMapping` 对象的列表，每个对象包含以下层级结构：
 
+```
+pickle文件
+└── [AtomMapping对象1, AtomMapping对象2, ..., AtomMapping对象N]
+
+AtomMapping对象
+├── structure_ref (MolStructure) - 参考分子结构
+│   ├── atoms (np.ndarray, dtype=int) - 原子序数数组，形状为 (N,)，N为原子数
+│   └── coordinates (np.ndarray, dtype=float64) - 原子坐标数组，形状为 (N, 3)
+├── structure_cand (MolStructure) - 候选分子结构
+│   ├── atoms (np.ndarray, dtype=int) - 原子序数数组，形状为 (N,)，N为原子数
+│   └── coordinates (np.ndarray, dtype=float64) - 原子坐标数组，形状为 (N, 3)
+├── mapping_indices (np.ndarray, dtype=int) - 原子映射索引数组，形状为 (N,)
+└── source (str) - 数据来源标识（"RDB19", "RGD1", "T1x"）
+```
+其中 mapping_indices[i] 表示候选分子中第i个原子映射到参考分子中的位置
 
 ## 算法说明
 
@@ -79,16 +92,17 @@ python test_hungarian_algorithm.py
 ### QML重排序算法（qml）
 都直接调用 [rmsd GitHub仓库](https://github.com/charnley/rmsd)
 
+### AI 相关的重排序算法（需实现）
 
 ## 测试结果
 
 以下是在三个数据集上各算法的严格正确率测试结果：
 
-| 算法名称 | RDB19 | RGD1 | T1x | Average |
-|---------|------------|-----------|----------|-----------|
-| 基于惯性矩的匈牙利算法 | 31.04% | 23.36% | 27.02% | 27.14% |
-| QML重排序算法 | 14.09% | 16.63% | 23.74% | 18.15% |
-| 距离重排序算法 | 0.02% | 0.40% | 2.10% | 0.84% |
+| 算法名称 | RDB19 | RGD1 | T1x |
+|---------|------------|-----------|----------|
+| inertia_hungarian | 31.04% | 23.36% | 27.02% |
+| qml | 14.09% | 16.63% | 23.74% |
+| distance | 0.02% | 0.40% | 2.10% |
 
 
 ## 许可证
