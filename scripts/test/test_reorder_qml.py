@@ -1,4 +1,5 @@
-# test_reorder_distance.py
+# test_reorder_qml.py
+import argparse
 import numpy as np
 import pickle
 import os
@@ -45,19 +46,21 @@ sys.path.append("/Users/misixuan/Desktop/codingwithai/rmsd_test")
 
 # 导入必要的模块
 from src.utils import MolStructure, AtomMapping
-from src.reorder_distance import reorder_distance
+from src.reorder_qml import reorder_qml
 
 
 def validate_reorder_function(
     test_mappings_path: str,
+    use_kernel: bool = True,
     verbose: bool = False
 ) -> Dict[str, float]:
     """
-    使用测试数据集验证 reorder_distance.py 中的重排序函数
+    使用测试数据集验证 reorder_qml.py 中的重排序函数
     核心：对比预测映射与 AtomMapping 中的正确映射（标准答案）
     
     参数:
         test_mappings_path: 测试数据集路径（xxx_dataset.pkl）
+        use_kernel: 是否使用核函数（reorder_qml 特有的参数）
         verbose: 是否打印每个样本的详细信息
     
     返回:
@@ -73,7 +76,7 @@ def validate_reorder_function(
         return {}
     
     print("=" * 70)
-    print(f"开始验证重排序函数 | 测试样本数：{len(test_mappings)}")
+    print(f"开始验证重排序函数 | 测试样本数：{len(test_mappings)} | use_kernel: {use_kernel}")
     print("=" * 70)
     
     # 统计变量
@@ -94,7 +97,7 @@ def validate_reorder_function(
             
             # 调用重排序函数预测映射，记录执行时间
             start_time = time.time()
-            predicted_mapping = reorder_distance(ref_struct, cand_struct)
+            predicted_mapping = reorder_qml(ref_struct, cand_struct, use_kernel=use_kernel)
             exec_time = time.time() - start_time
             execution_times.append(exec_time)
             
@@ -169,11 +172,15 @@ def validate_reorder_function(
         "strict_accuracy": strict_accuracy,
         "avg_swap_count": avg_swap_count,
         "avg_hamming_distance": avg_hamming_distance,
-        "avg_execution_time": avg_execution_time
+        "avg_execution_time": avg_execution_time,
+        "use_kernel": use_kernel
     }
 
 
-def find_all_test_datasets(dataset_dir: str = "../data/ready") -> List[str]:
+def find_all_test_datasets(
+    dataset_dir: str = "../data/ready",
+    suffixes: Optional[List[str]] = None,
+) -> List[str]:
     """
     查找指定目录下所有的测试数据集文件
     
@@ -191,10 +198,13 @@ def find_all_test_datasets(dataset_dir: str = "../data/ready") -> List[str]:
         print(f"警告：目录不存在：{abs_dir}")
         return []
     
-    # 查找所有 .pkl 文件
+    if not suffixes:
+        suffixes = [".pkl"]
+
+    # 查找匹配后缀的 .pkl 文件
     dataset_files = []
     for file in os.listdir(abs_dir):
-        if file.endswith(".pkl"):
+        if any(file.endswith(suffix) for suffix in suffixes):
             dataset_files.append(os.path.join(abs_dir, file))
     
     # 按文件名排序
@@ -205,14 +215,17 @@ def find_all_test_datasets(dataset_dir: str = "../data/ready") -> List[str]:
 
 def run_batch_validation(
     dataset_dir: str = "../data/ready",
+    use_kernel: bool = True,
     verbose: bool = False,
-    output_summary: bool = True
+    output_summary: bool = True,
+    suffixes: Optional[List[str]] = None,
 ) -> List[Dict[str, float]]:
     """
     批量验证所有测试数据集
     
     参数:
         dataset_dir: 数据集目录路径
+        use_kernel: 是否使用核函数（reorder_qml 特有的参数）
         verbose: 是否打印每个样本的详细信息
         output_summary: 是否输出汇总结果
     
@@ -220,7 +233,7 @@ def run_batch_validation(
         所有数据集的验证结果列表
     """
     # 查找所有测试数据集
-    dataset_files = find_all_test_datasets(dataset_dir)
+    dataset_files = find_all_test_datasets(dataset_dir, suffixes=suffixes)
     
     if not dataset_files:
         print("未找到任何测试数据集文件")
@@ -233,12 +246,12 @@ def run_batch_validation(
     # 批量验证
     all_results = []
     print("\n" + "="*80)
-    print("开始批量验证")
+    print(f"开始批量验证 | use_kernel: {use_kernel}")
     print("="*80)
     
     for file_path in dataset_files:
         print(f"\n验证数据集：{os.path.basename(file_path)}")
-        result = validate_reorder_function(file_path, verbose=verbose)
+        result = validate_reorder_function(file_path, use_kernel=use_kernel, verbose=verbose)
         if result:
             all_results.append(result)
     
@@ -247,11 +260,11 @@ def run_batch_validation(
         print("\n" + "="*80)
         print("批量验证汇总结果")
         print("="*80)
-        print(f"{'数据集名称':<30} {'严格正确率':<12} {'平均交换次数':<12} {'平均汉明距离':<12} {'平均执行时间(ms)':<16} {'有效样本数':<10}")
-        print("-"*95)
+        print(f"{'数据集名称':<30} {'严格正确率':<12} {'平均交换次数':<12} {'平均汉明距离':<12} {'平均执行时间(ms)':<16} {'有效样本数':<10} {'use_kernel':<10}")
+        print("-"*105)
         
         for result in all_results:
-            print(f"{result['dataset']:<30} {result['strict_accuracy']:12.2f}% {result['avg_swap_count']:12.2f} {result['avg_hamming_distance']:12.2f} {result['avg_execution_time']:16.2f} {result['valid_samples']:10d}")
+            print(f"{result['dataset']:<30} {result['strict_accuracy']:12.2f}% {result['avg_swap_count']:12.2f} {result['avg_hamming_distance']:12.2f} {result['avg_execution_time']:16.2f} {result['valid_samples']:10d} {result['use_kernel']:<10}")
         
         # 计算总体平均
         avg_strict_acc = np.mean([r['strict_accuracy'] for r in all_results])
@@ -260,31 +273,65 @@ def run_batch_validation(
         avg_time = np.mean([r['avg_execution_time'] for r in all_results])
         total_valid_samples = sum([r['valid_samples'] for r in all_results])
         
-        print("="*95)
+        print("="*105)
         print(f"{'总体平均':<30} {avg_strict_acc:12.2f}% {avg_swap:12.2f} {avg_hamming:12.2f} {avg_time:16.2f} {total_valid_samples:10d}")
     
     return all_results
 
 
 if __name__ == "__main__":
-    # 默认参数
-    DATASET_DIR = "../data/ready"
+    parser = argparse.ArgumentParser(description="原子重排序算法（qml）验证工具")
+    parser.add_argument(
+        "--dataset",
+        default="../../data/ready",
+        help="数据集目录路径",
+    )
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="验证结果输出文件路径",
+    )
+    parser.add_argument(
+        "--suffix",
+        action="append",
+        default=None,
+        help="仅匹配指定后缀文件（可重复），例如 --suffix dataset.pkl --suffix val.pkl",
+    )
+    parser.add_argument(
+        "--use-kernel",
+        default="true",
+        choices=["true", "false"],
+        help="是否使用核函数 (true/false)",
+    )
+    args = parser.parse_args()
+
+    dataset = args.dataset
+    use_kernel = args.use_kernel == "true"
+    output_file = args.output or f"../../results/val_dataset/qml_validation_results_use_kernel_{use_kernel}.txt"
+    suffixes = args.suffix if args.suffix else ["dataset.pkl", "val.pkl"]
     VERBOSE = False  # 是否打印每个样本的详细信息
     OUTPUT_SUMMARY = True  # 是否输出汇总结果
     
     # 运行批量验证
-    print("原子重排序算法（distance）验证工具")
+    print("原子重排序算法（qml）验证工具")
+    print(f"use_kernel 参数设置: {use_kernel}")
     print("=" * 60)
     
-    results = run_batch_validation(DATASET_DIR, verbose=VERBOSE, output_summary=OUTPUT_SUMMARY)
+    results = run_batch_validation(
+        dataset,
+        use_kernel=use_kernel,
+        verbose=VERBOSE,
+        output_summary=OUTPUT_SUMMARY,
+        suffixes=suffixes,
+    )
     
     # 保存验证结果到文件
     if results:
-        output_file = "../results/distance_validation_results.txt"
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
         
         with open(output_file, 'w') as f:
-            f.write("原子重排序算法（distance）验证结果\n")
+            f.write("原子重排序算法（qml）验证结果\n")
+            f.write(f"use_kernel 设置: {use_kernel}\n")
             f.write("=" * 80 + "\n\n")
             
             for result in results:
@@ -297,6 +344,7 @@ if __name__ == "__main__":
                 f.write(f"平均最少交换次数: {result['avg_swap_count']:.2f}\n")
                 f.write(f"平均汉明距离: {result['avg_hamming_distance']:.2f}\n")
                 f.write(f"平均执行时间: {result['avg_execution_time']:.2f} ms\n")
+                f.write(f"use_kernel: {result['use_kernel']}\n")
                 f.write("\n" + "-" * 60 + "\n\n")
         
         print(f"\n验证结果已保存到: {output_file}")

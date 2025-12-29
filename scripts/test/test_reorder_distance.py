@@ -1,4 +1,5 @@
-# test_hungarian_algorithm.py
+# test_reorder_distance.py
+import argparse
 import numpy as np
 import pickle
 import os
@@ -41,12 +42,11 @@ def min_swap_count(correct_mapping, predicted_mapping):
     return n - cycle_count
 
 # 添加项目根目录到Python路径
-import sys
 sys.path.append("/Users/misixuan/Desktop/codingwithai/rmsd_test")
 
 # 导入必要的模块
 from src.utils import MolStructure, AtomMapping
-from src.reorder_inertia_hungarian import reorder_inertia_hungarian
+from src.reorder_distance import reorder_distance
 
 
 def validate_reorder_function(
@@ -54,7 +54,7 @@ def validate_reorder_function(
     verbose: bool = False
 ) -> Dict[str, float]:
     """
-    使用测试数据集验证 inertia_hungarian.py 中的重排序函数
+    使用测试数据集验证 reorder_distance.py 中的重排序函数
     核心：对比预测映射与 AtomMapping 中的正确映射（标准答案）
     
     参数:
@@ -80,8 +80,6 @@ def validate_reorder_function(
     # 统计变量
     total_samples = len(test_mappings)
     correct_samples = 0
-    # rmsd_list = []
-    # symmetry_mismatch_samples = 0  # 因对称性导致索引不匹配但RMSD接近0的样本
     error_samples = 0  # 处理出错的样本数
     swap_counts = []  # 最少交换次数列表
     hamming_distances = []  # 汉明距离列表
@@ -97,11 +95,11 @@ def validate_reorder_function(
             
             # 调用重排序函数预测映射，记录执行时间
             start_time = time.time()
-            predicted_mapping = reorder_inertia_hungarian(ref_struct, cand_struct)
+            predicted_mapping = reorder_distance(ref_struct, cand_struct)
             exec_time = time.time() - start_time
             execution_times.append(exec_time)
             
-            # 验证1：索引完全匹配（严格正确）
+            # 验证：索引完全匹配（严格正确）
             is_strict_correct = np.array_equal(predicted_mapping, correct_mapping)
             
             # 计算汉明距离（对应位置元素不匹配的个数）
@@ -119,28 +117,10 @@ def validate_reorder_function(
             else:
                 swap_counts.append(0)
             
-            # # 验证2：RMSD验证（允许对称性等价映射）
-            # # 使用预测映射重排候选结构
-            # predicted_cand = MolStructure(
-            #     atoms=cand_struct.atoms[predicted_mapping],
-            #     coordinates=cand_struct.coordinates[predicted_mapping]
-            # )
-            # # 计算与参考结构的RMSD（参考结构和候选结构应先中心化，避免平移影响）
-            # ref_centered = ref_struct.coordinates - np.mean(ref_struct.coordinates, axis=0)
-            # pred_centered = predicted_cand.coordinates - np.mean(predicted_cand.coordinates, axis=0)
-            # rmsd = np.sqrt(np.mean((ref_centered - pred_centered)**2))
-            # rmsd_list.append(rmsd)
-            
-            # # 判定：RMSD < 1e-3 Å 视为等价正确（对称性导致索引不同）
-            # is_equivalent_correct = rmsd < 1e-3
-            
             # 统计
             if is_strict_correct:
                 correct_samples += 1
                 status = "✅ 严格正确"
-            # elif is_equivalent_correct:
-                # symmetry_mismatch_samples += 1
-                # status = "⚠️  等价正确（对称性）"
             else:
                 status = "❌ 错误"
             
@@ -173,6 +153,7 @@ def validate_reorder_function(
     print("验证结果统计：")
     print(f"总样本数：{total_samples}")
     print(f"有效样本数：{valid_samples}")
+    print(f"出错样本数：{error_samples}")
     print(f"正确样本数：{correct_samples}")
     print(f"严格正确率（索引完全匹配）：{correct_samples}/{valid_samples} ({strict_accuracy:.2f}%)")
     print(f"平均最少交换次数：{avg_swap_count:.2f}")
@@ -184,6 +165,7 @@ def validate_reorder_function(
         "dataset": os.path.basename(test_mappings_path),
         "total_samples": total_samples,
         "valid_samples": valid_samples,
+        "error_samples": error_samples,
         "correct_samples": correct_samples,
         "strict_accuracy": strict_accuracy,
         "avg_swap_count": avg_swap_count,
@@ -192,12 +174,16 @@ def validate_reorder_function(
     }
 
 
-def find_all_test_datasets(dataset_dir: str = "../data/ready") -> List[str]:
+def find_all_test_datasets(
+    dataset_dir: str = "../data/ready",
+    suffixes: Optional[List[str]] = None,
+) -> List[str]:
     """
     查找指定目录下所有的测试数据集文件
     
     参数:
         dataset_dir: 数据集目录路径
+        suffixes: 文件后缀列表（如 ["dataset.pkl", "val.pkl"]）
     
     返回:
         数据集文件路径列表
@@ -210,10 +196,13 @@ def find_all_test_datasets(dataset_dir: str = "../data/ready") -> List[str]:
         print(f"警告：目录不存在：{abs_dir}")
         return []
     
-    # 查找所有 .pkl 文件
+    if not suffixes:
+        suffixes = [".pkl"]
+
+    # 查找匹配后缀的 .pkl 文件
     dataset_files = []
     for file in os.listdir(abs_dir):
-        if file.endswith(".pkl"):
+        if any(file.endswith(suffix) for suffix in suffixes):
             dataset_files.append(os.path.join(abs_dir, file))
     
     # 按文件名排序
@@ -225,7 +214,8 @@ def find_all_test_datasets(dataset_dir: str = "../data/ready") -> List[str]:
 def run_batch_validation(
     dataset_dir: str = "../data/ready",
     verbose: bool = False,
-    output_summary: bool = True
+    output_summary: bool = True,
+    suffixes: Optional[List[str]] = None,
 ) -> List[Dict[str, float]]:
     """
     批量验证所有测试数据集
@@ -239,7 +229,7 @@ def run_batch_validation(
         所有数据集的验证结果列表
     """
     # 查找所有测试数据集
-    dataset_files = find_all_test_datasets(dataset_dir)
+    dataset_files = find_all_test_datasets(dataset_dir, suffixes=suffixes)
     
     if not dataset_files:
         print("未找到任何测试数据集文件")
@@ -271,7 +261,6 @@ def run_batch_validation(
         
         for result in all_results:
             print(f"{result['dataset']:<30} {result['strict_accuracy']:12.2f}% {result['avg_swap_count']:12.2f} {result['avg_hamming_distance']:12.2f} {result['avg_execution_time']:16.2f} {result['valid_samples']:10d}")
-            # print(f"{result['dataset']:<30} {result['strict_accuracy']:8.1f}% {result['total_correct_rate']:8.1f}% {result['avg_rmsd']:10.6f} Å {result['valid_samples']:10d}")
         
         # 计算总体平均
         avg_strict_acc = np.mean([r['strict_accuracy'] for r in all_results])
@@ -282,36 +271,60 @@ def run_batch_validation(
         
         print("="*95)
         print(f"{'总体平均':<30} {avg_strict_acc:12.2f}% {avg_swap:12.2f} {avg_hamming:12.2f} {avg_time:16.2f} {total_valid_samples:10d}")
-        # print(f"{'总体平均':<30} {avg_strict_acc:8.1f}% {avg_total_acc:8.1f}% {avg_rmsd:10.6f} Å {total_valid_samples:10d}")
     
     return all_results
 
 
 if __name__ == "__main__":
-    # 默认参数
-    DATASET_DIR = "../data/ready"
+    parser = argparse.ArgumentParser(description="原子重排序算法（distance）验证工具")
+    parser.add_argument(
+        "--dataset",
+        default="../../data/ready",
+        help="数据集目录路径",
+    )
+    parser.add_argument(
+        "--output",
+        default="../../results/val_dataset/distance_validation_results.txt",
+        help="验证结果输出文件路径",
+    )
+    parser.add_argument(
+        "--suffix",
+        action="append",
+        default=None,
+        help="仅匹配指定后缀文件（可重复），例如 --suffix dataset.pkl --suffix val.pkl",
+    )
+    args = parser.parse_args()
+
+    dataset = args.dataset
+    output_file = args.output
+    suffixes = args.suffix if args.suffix else ["dataset.pkl", "val.pkl"]
     VERBOSE = False  # 是否打印每个样本的详细信息
     OUTPUT_SUMMARY = True  # 是否输出汇总结果
     
     # 运行批量验证
-    print("原子重排序算法（inertia_hungarian）验证工具")
+    print("原子重排序算法（distance）验证工具")
     print("=" * 60)
     
-    results = run_batch_validation(DATASET_DIR, verbose=VERBOSE, output_summary=OUTPUT_SUMMARY)
+    results = run_batch_validation(
+        dataset,
+        verbose=VERBOSE,
+        output_summary=OUTPUT_SUMMARY,
+        suffixes=suffixes,
+    )
     
     # 保存验证结果到文件
     if results:
-        output_file = "../results/inertia_hungarian_validation_results.txt"
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
         
         with open(output_file, 'w') as f:
-            f.write("原子重排序算法（inertia_hungarian）验证结果\n")
+            f.write("原子重排序算法（distance）验证结果\n")
             f.write("=" * 80 + "\n\n")
             
             for result in results:
                 f.write(f"数据集: {result['dataset']}\n")
                 f.write(f"总样本数: {result['total_samples']}\n")
                 f.write(f"有效样本数: {result['valid_samples']}\n")
+                f.write(f"出错样本数: {result['error_samples']}\n")
                 f.write(f"正确样本数: {result['correct_samples']}\n")
                 f.write(f"严格正确率: {result['strict_accuracy']:.2f}%\n")
                 f.write(f"平均最少交换次数: {result['avg_swap_count']:.2f}\n")

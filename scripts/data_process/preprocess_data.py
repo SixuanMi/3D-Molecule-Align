@@ -287,9 +287,9 @@ def generate_mapping_dataset(
 if __name__ == "__main__":
     # 加载不同的数据集
     print("=== 开始加载数据集 ===")
-    rgd1_data = load_rgd1_data("../data/raw/RGD1_CHNO.h5")
-    t1x_data = load_t1x_data("../data/raw/transition1x.h5")
-    rdb19_data = load_rdb19_rad_data("../data/raw/Reactions")
+    rgd1_data = load_rgd1_data("../../data/raw/RGD1_CHNO.h5")
+    t1x_data = load_t1x_data("../../data/raw/transition1x.h5")
+    rdb19_data = load_rdb19_rad_data("../../data/raw/Reactions")
     
     # 为每个数据集生成原子映射信息
     print("\n=== 开始生成原子映射数据集 ===")

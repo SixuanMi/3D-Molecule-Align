@@ -121,7 +121,7 @@ def batch_download(files_list, max_workers=MAX_WORKERS):
 
 if __name__ == "__main__":
     # ------------------- 保留你的文件路径和链接配置 -------------------
-    files_to_save_folder = "../data/raw/"
+    files_to_save_folder = "../../data/raw/"
     files_to_download = [
         # ("https://figshare.com/ndownloader/files/43293162?download=1", f"{files_to_save_folder}RGD1_RPs.h5"),
         # ("https://figshare.com/ndownloader/files/43291989?download=1", f"{files_to_save_folder}RandP_smiles.txt"),
