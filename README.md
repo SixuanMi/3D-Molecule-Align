@@ -106,6 +106,8 @@ AtomMapping对象
 | distance       | 0.02%       | 19.09           | 0.40%       | 11.21           | 2.10%       | 8.07            |
 
 
+[Download Weights and Data](https://huggingface.co/SII-SikoraMi/3d-mol-mapping/tree/main)
+
 ## 许可证
 
 MIT License

@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 try:
     from src.utils import MolStructure, AtomMapping
 except ImportError:
+    print('sxmi')
     pass 
 
 import pickle
@@ -17,7 +18,6 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt  # 新增绘图库
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
-from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 try:
@@ -200,10 +200,11 @@ def compute_supervised_matching_loss_and_acc(h_s, h_t, mapping_indices, batch_id
 
 def train_main():
     DATA_DIR = "../../data/ready"
-    MODEL_SAVE_PATH = "models/best_gnn_model.pth"
+    MODEL_SAVE_PATH = "../models/best_gnn_model.pth"
     BATCH_SIZE = 128  
-    EPOCHS = 20
-    NUM_WORKERS = 4
+    EPOCHS = 50
+    NUM_WORKERS = 8
+    INCLUDE_DATASETS = ["t1x", "rgd1"]
     
     if not os.path.exists(DATA_DIR) and os.path.exists(f"../{DATA_DIR}"):
         DATA_DIR = f"../{DATA_DIR}"
@@ -211,11 +212,20 @@ def train_main():
     
     os.makedirs(os.path.dirname(MODEL_SAVE_PATH), exist_ok=True)
     
-    pkl_files = [os.path.join(DATA_DIR, f) for f in os.listdir(DATA_DIR) if f.endswith(".pkl")]
-    all_data = process_pkl_data(pkl_files)
-    if not all_data: return
-    
-    train_data, val_data = train_test_split(all_data, test_size=0.2, random_state=42)
+    train_files = [os.path.join(DATA_DIR, f"{name}_train.pkl") for name in INCLUDE_DATASETS]
+    val_files = [os.path.join(DATA_DIR, f"{name}_val.pkl") for name in INCLUDE_DATASETS]
+    missing_files = [f for f in train_files + val_files if not os.path.exists(f)]
+    if missing_files:
+        print("错误: 缺少训练或验证数据文件:")
+        for f in missing_files:
+            print(f"  - {f}")
+        return
+
+    train_data = process_pkl_data(train_files)
+    val_data = process_pkl_data(val_files)
+    if not train_data or not val_data:
+        print("错误: 训练或验证数据为空。")
+        return
     train_loader = DataLoader(train_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
     val_loader = DataLoader(val_data, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS)
     
@@ -224,8 +234,12 @@ def train_main():
     
     model = EGNNAlignmentModel().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    
-    best_acc = 0.0
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='min', patience=3, factor=0.5
+    )
+    best_val_loss = float('inf')
+    epochs_no_improve = 0
+    EARLY_STOP_PATIENCE = 5
     # 记录训练历史
     history = {'train_loss': [], 'train_acc': [], 'val_loss': [], 'val_acc': []}
     
@@ -275,12 +289,23 @@ def train_main():
         history['val_loss'].append(avg_val_loss)
         history['val_acc'].append(avg_val_acc)
         
-        print(f"Epoch {epoch+1} | Acc: {avg_train_acc*100:.2f}% | Val Acc: {avg_val_acc*100:.2f}%")
-        
-        if avg_val_acc > best_acc:
-            best_acc = avg_val_acc
+        print(
+            f"Epoch {epoch+1} | Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | "
+            f"Acc: {avg_train_acc*100:.2f}% | Val Acc: {avg_val_acc*100:.2f}%"
+        )
+
+        scheduler.step(avg_val_loss)
+
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+            epochs_no_improve = 0
             torch.save(model.state_dict(), MODEL_SAVE_PATH)
-            print(f"  >>> 最佳模型已保存 (Val Acc: {best_acc*100:.2f}%)")
+            print(f"  >>> 最佳模型已保存 (Val Loss: {best_val_loss:.4f})")
+        else:
+            epochs_no_improve += 1
+            if epochs_no_improve >= EARLY_STOP_PATIENCE:
+                print(f"  >>> Val Loss 已连续 {EARLY_STOP_PATIENCE} 轮未下降，提前停止训练。")
+                break
 
     # 训练结束后绘制曲线
     plot_training_curves(history, os.path.dirname(MODEL_SAVE_PATH))

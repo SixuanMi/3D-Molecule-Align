@@ -6,4 +6,15 @@ tqdm
 requests
 h5py
 qmllib
+scikit-learn
+torch==2.9.1
+torchvision==0.24.1
 git+https://gitlab.com/matschreiner/Transition1x.git
+
+-f https://data.pyg.org/whl/torch-2.8.0+cu128.html
+pyg_lib
+torch_geometric
+torch_scatter
+torch_sparse
+torch_cluster
+torch_spline_conv

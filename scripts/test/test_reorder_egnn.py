@@ -8,13 +8,12 @@ from typing import Dict, List
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from sklearn.model_selection import train_test_split  # [新增]
 
 # 添加项目根目录到路径
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.utils import MolStructure, AtomMapping
-from src.reorder_gnn import load_trained_model, EGNNAlignmentModel, MoleculeEGNN, EGNNLayer
+from scripts.train.egnn import load_trained_model, EGNNAlignmentModel, MoleculeEGNN, EGNNLayer
 
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
@@ -165,20 +164,13 @@ def process_pkl_data_with_labels(pkl_files):
             continue
     return data_list, label_list
 
-def load_validation_split(data_dir, test_size=0.2, random_state=42):
-    # 保持与训练脚本一致的文件顺序，不排序
-    pkl_files = [os.path.join(data_dir, f) for f in os.listdir(data_dir) if f.endswith(".pkl")]
-    all_data, all_labels = process_pkl_data_with_labels(pkl_files)
-    if not all_data:
-        return [], []
-    try:
-        _, val_data, _, val_labels = train_test_split(
-            all_data, all_labels, test_size=test_size, random_state=random_state
-        )
-    except ValueError:
-        val_data = all_data
-        val_labels = all_labels
-    return val_data, val_labels
+def load_validation_files(data_dir):
+    pkl_files = [
+        os.path.join(data_dir, f)
+        for f in os.listdir(data_dir)
+        if f.endswith("_val.pkl")
+    ]
+    return sorted(pkl_files)
 
 # ==========================================
 # 验证逻辑
@@ -284,6 +276,7 @@ def validate_data_list(data_list, dataset_label, model, batch_size=128, device='
         pbar.set_postfix({"Acc": f"{curr_acc:.2f}%"})
 
     valid = len(times)
+    error_samples = total - valid
     avg_swap = np.mean(swap_counts) if swap_counts else 0.0
     avg_hamming = np.mean(hamming_dists) if hamming_dists else 0.0
     avg_time = np.mean(times) * 1000
@@ -292,6 +285,9 @@ def validate_data_list(data_list, dataset_label, model, batch_size=128, device='
     return {
         "dataset": dataset_label,
         "total_samples": total,
+        "valid_samples": valid,
+        "error_samples": error_samples,
+        "correct_samples": correct,
         "strict_accuracy": strict_acc,
         "avg_swap_count": avg_swap,
         "avg_hamming_distance": avg_hamming,
@@ -299,16 +295,16 @@ def validate_data_list(data_list, dataset_label, model, batch_size=128, device='
     }, dataset_rmsds
 
 def run_batch_validation():
-    DATA_DIR = "data/ready"
-    MODEL_PATH = "models/best_gnn_model.pth"
-    OUTPUT_FILE = "results/gnn_validation_results.txt"
-    VIS_DIR = "results/visualizations"
+    # DATA_DIR = "data/ready"
+    # MODEL_PATH = "models/best_gnn_model.pth"
+    # OUTPUT_FILE = "results/gnn_validation_results.txt"
+    # VIS_DIR = "results/visualizations"
     
-    if not os.path.exists(DATA_DIR) and os.path.exists("../data/ready"):
-        DATA_DIR = "../data/ready"
-        MODEL_PATH = "../models/best_gnn_model.pth"
-        OUTPUT_FILE = "../results/gnn_validation_results.txt"
-        VIS_DIR = "../results/visualizations"
+    # if not os.path.exists(DATA_DIR) and os.path.exists("../../data/ready"):
+    DATA_DIR = "../../data/ready"
+    MODEL_PATH = "../../models/best_gnn_model.pth"
+    OUTPUT_FILE = "../../results/val_dataset/gnn_validation_results.txt"
+    VIS_DIR = "../../results/visualizations"
 
     print("="*60)
     print("原子重排序算法（AI-EGNN）训练验证集评估")
@@ -326,21 +322,21 @@ def run_batch_validation():
 
     abs_data_dir = os.path.abspath(DATA_DIR)
     if not os.path.exists(abs_data_dir): return
-    val_data, val_labels = load_validation_split(abs_data_dir, test_size=0.2, random_state=42)
-    if not val_data:
-        print("\n!!! 错误: 未找到可用的验证数据 !!!")
+    val_files = load_validation_files(abs_data_dir)
+    if not val_files:
+        print("\n!!! 错误: 未找到 *_val.pkl 验证数据文件 !!!")
         return
-
-    grouped_data = {}
-    for data, label in zip(val_data, val_labels):
-        grouped_data.setdefault(label, []).append(data)
 
     results = []
     all_rmsds = []
-    print(f"\n开始验证 {len(grouped_data)} 个数据集 (使用训练时验证集 20%)...")
+    print(f"\n开始验证 {len(val_files)} 个数据集 (*_val.pkl)...")
     
-    for label in sorted(grouped_data.keys()):
-        res, rmsds = validate_data_list(grouped_data[label], label, model, batch_size=128, device=device, visualize_n=3, vis_dir=VIS_DIR)
+    for file_path in val_files:
+        data_list, label_list = process_pkl_data_with_labels([file_path])
+        if not data_list:
+            continue
+        label = label_list[0]
+        res, rmsds = validate_data_list(data_list, label, model, batch_size=128, device=device, visualize_n=3, vis_dir=VIS_DIR)
         if res: 
             results.append(res)
             all_rmsds.extend(rmsds)
@@ -363,7 +359,12 @@ def run_batch_validation():
             f.write("=" * 80 + "\n\n")
             for r in results:
                 f.write(f"数据集: {r['dataset']}\n")
+                f.write(f"总样本数: {r['total_samples']}\n")
+                f.write(f"有效样本数: {r['valid_samples']}\n")
+                f.write(f"出错样本数: {r['error_samples']}\n")
+                f.write(f"正确样本数: {r['correct_samples']}\n")
                 f.write(f"严格正确率: {r['strict_accuracy']:.2f}%\n")
+                f.write(f"平均最少交换次数: {r['avg_swap_count']:.2f}\n")
                 f.write(f"平均汉明距离: {r['avg_hamming_distance']:.2f}\n")
                 f.write(f"平均执行时间: {r['avg_execution_time']:.2f} ms\n\n")
             
