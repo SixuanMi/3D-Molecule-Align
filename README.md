@@ -16,9 +16,9 @@
 rmsd_test/
 ├── data/
 │   ├── raw/                    # 原始数据（下载后）
-│   └── ready/                  # 预处理后的 pkl 数据
-├── models/                     # 训练权重（如 EGNN）
-├── results/                    # 基线与 EGNN 的结果与图表
+│   └── ready/                  # 预处理后的 pkl 数据（可从 Huggingface 下载）
+├── models/                     # 训练权重（可从 Huggingface 下载）
+├── results/                    # 基线结果与图表
 ├── scripts/
 │   ├── data_process/           # 下载、预处理、切分数据
 │   ├── train/                  # 训练脚本（EGNN / Diffusion）
@@ -29,10 +29,11 @@ rmsd_test/
 ## 安装依赖
 
 ```bash
+conda create -n 3d-mol-mapping python=3.10 -y
+conda activate 3d-mol-mapping
 pip install -r requirements.txt
+pip install -e .
 ```
-
-> 如需 GPU 加速，请确保本机 CUDA 与 PyTorch / PyG 版本匹配。
 
 ## 数据准备
 
@@ -107,15 +108,15 @@ python diffusion_eval_hybrid_ddp.py \
 
 ## 测试结果
 
-验证集结果（Acc.↑ / Avg. HD↓ / 耗时↓ ms/mol）：
+验证集结果：Acc. 为原子映射准确率（越高越好）；HD (Hamming Distance) 为汉明距离（越低越好）；ms 为单分子平均推理耗时（越低越好）。
 
-| 方法 | T1x (ID) Acc.↑ | T1x Avg. HD↓ | T1x 耗时↓ (ms/mol) | RGD1 (ID) Acc.↑ | RGD1 Avg. HD↓ | RGD1 耗时↓ (ms/mol) | RDB19-Rad (OOD) Acc.↑ | RDB19-Rad Avg. HD↓ | RDB19-Rad 耗时↓ (ms/mol) |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Distance | 2.18% | 8.12 | 0.03 | 0.41% | 11.21 | 0.03 | 0.00% | 19.08 | 0.03 |
+| 方法 | T1x (ID) Acc.↑ | HD↓ | ms↓ | RGD1 (ID) Acc.↑ | HD↓ | ms↓ | RDB19 (OOD) Acc.↑ | HD↓ | ms↓ |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Distance | 2.18% | 8.12 | **0.03** | 0.41% | 11.21 | **0.03** | 0.00% | 19.08 | **0.03** |
 | QML | 23.23% | 3.87 | 0.58 | 16.70% | 4.74 | 1.07 | 13.66% | 6.14 | 3.66 |
-| Inertia-Hungarian | 27.00% | 5.14 | 0.42 | 23.47% | 6.88 | 0.48 | 29.73% | 7.35 | 0.50 |
-| EGNN | 43.57% | 2.38 | 0.62 | 68.09% | 1.13 | 0.25 | 34.64% | 3.11 | 1.49 |
-| Diffusion | 75.50% | 0.71 | 16.63 | 85.58% | 0.42 | 16.33 | 57.32% | 1.70 | 17.23 |
+| Inertia-Hungarian | 27.00% | 5.14 | <u>0.42</u> | 23.47% | 6.88 | 0.48 | 29.73% | 7.35 | <u>0.50</u> |
+| EGNN | <u>43.57%</u> | <u>2.38</u> | 0.62 | <u>68.09%</u> | <u>1.13</u> | <u>0.25</u> | <u>34.64%</u> | <u>3.11</u> | 1.49 |
+| **Diffusion (Ours)** | **75.50%** | **0.71** | 16.63 | **85.58%** | **0.42** | 16.33 | **57.32%** | **1.70** | 17.23 |
 
 ## 数据说明
 
@@ -143,7 +144,7 @@ AtomMapping 对象
 
 其中 `mapping_indices[i]` 表示候选分子第 `i` 个原子映射到参考分子中的位置。
 
-## 资源与链接
+## 数据与权重
 
 - [Download Weights and Data](https://huggingface.co/SII-SikoraMi/3d-mol-mapping/tree/main)
 
