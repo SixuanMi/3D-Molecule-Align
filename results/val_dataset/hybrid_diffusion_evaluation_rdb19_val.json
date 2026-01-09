@@ -1,0 +1,31 @@
+{
+  "method": "hybrid_diffusion",
+  "num_sampling_steps": 50,
+  "total_samples": 1120,
+  "mean_accuracy": 0.9386635388114623,
+  "median_accuracy": 1.0,
+  "std_accuracy": 0.09115465756689108,
+  "min_accuracy": 0.2631579041481018,
+  "max_accuracy": 1.0,
+  "perfect_match_count": 638,
+  "perfect_match_rate": 0.5696428571428571,
+  "mean_hamming": 1.6839285714285714,
+  "median_hamming": 0.0,
+  "std_hamming": 2.4520601240672737,
+  "min_hamming": 0.0,
+  "max_hamming": 16.0,
+  "mean_inference_time_ms": 47.74001268659319,
+  "median_inference_time_ms": 47.611549377441406,
+  "std_inference_time_ms": 0.6236334681447286,
+  "min_inference_time_ms": 47.48828887939453,
+  "max_inference_time_ms": 49.767677307128906,
+  "accuracy_bins": {
+    "0.0-0.2": 0,
+    "0.2-0.4": 2,
+    "0.4-0.6": 7,
+    "0.6-0.8": 72,
+    "0.8-1.0": 401,
+    "1.0": 638
+  },
+  "dataset": "rdb19_val"
+}

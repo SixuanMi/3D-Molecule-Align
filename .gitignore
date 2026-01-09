@@ -3,10 +3,13 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+rmsd_test.egg-info/
+.ipynb_checkpoints/
 
 # === 操作系统临时文件 ===
 .DS_Store
 Thumbs.db
+*.swp
 
 # === 本地测试文件 ===
 data/

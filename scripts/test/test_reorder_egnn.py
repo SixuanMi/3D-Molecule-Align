@@ -303,8 +303,8 @@ def run_batch_validation():
     # if not os.path.exists(DATA_DIR) and os.path.exists("../../data/ready"):
     DATA_DIR = "../../data/ready"
     MODEL_PATH = "../../models/best_gnn_model.pth"
-    OUTPUT_FILE = "../../results/val_dataset/gnn_validation_results.txt"
-    VIS_DIR = "../../results/visualizations"
+    OUTPUT_FILE = "../../results/val_dataset/egnn_validation_results.txt"
+    VIS_DIR = "../../results/val_dataset/egnn_visualizations"
 
     print("="*60)
     print("原子重排序算法（AI-EGNN）训练验证集评估")
@@ -336,7 +336,7 @@ def run_batch_validation():
         if not data_list:
             continue
         label = label_list[0]
-        res, rmsds = validate_data_list(data_list, label, model, batch_size=128, device=device, visualize_n=3, vis_dir=VIS_DIR)
+        res, rmsds = validate_data_list(data_list, label, model, batch_size=128, device=device, visualize_n=0, vis_dir=None)
         if res: 
             results.append(res)
             all_rmsds.extend(rmsds)
@@ -349,8 +349,8 @@ def run_batch_validation():
             print(f"{r['dataset']:<30} {r['strict_accuracy']:6.2f}%    {r['avg_swap_count']:6.2f}     {r['avg_hamming_distance']:6.2f}     {r['avg_execution_time']:6.2f}")
         print("="*95)
         
-        plot_validation_summary(results, os.path.dirname(OUTPUT_FILE))
-        plot_rmsd_distribution(all_rmsds, os.path.dirname(OUTPUT_FILE))
+        plot_validation_summary(results, VIS_DIR)
+        plot_rmsd_distribution(all_rmsds, VIS_DIR)
         
         os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
         with open(OUTPUT_FILE, 'w') as f:
@@ -369,7 +369,7 @@ def run_batch_validation():
                 f.write(f"平均执行时间: {r['avg_execution_time']:.2f} ms\n\n")
             
     print(f"\n✅ 结果已保存: {OUTPUT_FILE}")
-    print(f"✅ 图表已保存: {VIS_DIR} 和 {os.path.dirname(OUTPUT_FILE)}")
+    print(f"✅ 图表已保存: {VIS_DIR}")
 
 if __name__ == "__main__":
     run_batch_validation()

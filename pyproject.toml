@@ -8,4 +8,4 @@ version = "0.0.0"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["src", "src.*"]
+include = ["src", "src.*", "scripts", "scripts.*"]
